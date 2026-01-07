@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>飞书多维表格-简易签字插件</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { padding: 20px; font-family: sans-serif; }
+    #signaturePad { 
+      border: 2px solid #e5e7eb; 
+      border-radius: 8px; 
+      width: 100%; 
+      max-width: 400px; 
+      height: 180px; 
+      cursor: crosshair;
+    }
+    .btn-group { margin-top: 15px; display: flex; gap: 10px; }
+    button { 
+      padding: 8px 16px; 
+      border: none; 
+      border-radius: 6px; 
+      cursor: pointer; 
+      font-size: 14px;
+    }
+    #clearBtn { background: #f3f4f6; color: #374151; }
+    #saveBtn { background: #2563eb; color: white; }
+    #result { margin-top: 15px; font-size: 14px; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <h3 style="margin-bottom: 10px; color: #111827;">手写签字区域</h3>
+  <canvas id="signaturePad"></canvas>
+  
+  <div class="btn-group">
+    <button id="clearBtn">清空签名</button>
+    <button id="saveBtn">生成签名图片</button>
+  </div>
+  
+  <div id="result"></div>
+
+  <script>
+    // ========== 核心配置（无需修改） ==========
+    const canvas = document.getElementById('signaturePad');
+    const ctx = canvas.getContext('2d');
+    let isDrawing = false;
+    let signatureBase64 = '';
+
+    // 初始化画布尺寸
+    function initCanvas() {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
+      ctx.lineCap = 'round'; // 线条圆润，模拟手写效果
+      ctx.lineWidth = 2;     // 签名笔画粗细
+      ctx.strokeStyle = '#000'; // 签名颜色
+    }
+
+    // 手写绘图逻辑
+    canvas.addEventListener('mousedown', (e) => {
+      isDrawing = true;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (!isDrawing) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    });
+
+    ['mouseup', 'mouseout'].forEach(event => {
+      canvas.addEventListener(event, () => isDrawing = false);
+    });
+
+    // 清空签名
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      document.getElementById('result').textContent = '';
+      signatureBase64 = '';
+    });
+
+    // 生成签名图片（Base64格式，可直接用于飞书附件上传）
+    document.getElementById('saveBtn').addEventListener('click', () => {
+      try {
+        signatureBase64 = canvas.toDataURL('image/png'); // 转为PNG格式Base64
+        document.getElementById('result').innerHTML = 
+          '✅ 签名生成成功！<br>Base64预览（前50字符）：' + signatureBase64.substring(0, 50) + '...';
+        
+        // ========== 飞书API上传（需替换以下配置后启用） ==========
+        // 提示：先部署插件，再在飞书开发者后台获取token/表格ID等信息后，取消注释并替换参数
+        /*
+        fetch('https://open.feishu.cn/open-apis/bitable/v1/apps/你的应用ID/tables/你的表格ID/records/当前记录ID/attachments/你的附件字段ID/upload', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + '你的飞书插件token',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ file: signatureBase64 })
+        }).then(res => {
+          if (res.ok) alert('签名已保存到多维表格！');
+          else alert('上传失败：' + res.statusText);
+        });
+        */
+      } catch (err) {
+        document.getElementById('result').textContent = '❌ 生成失败：' + err.message;
+      }
+    });
+
+    // 页面加载时初始化画布
+    window.onload = initCanvas;
+    // 窗口大小变化时重新适配画布
+    window.onresize = initCanvas;
+  </script>
+</body>
+</html>
